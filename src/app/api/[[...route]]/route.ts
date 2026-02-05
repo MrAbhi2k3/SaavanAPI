@@ -3,6 +3,7 @@ import { AlbumController, ArtistController, SearchController, SongController } f
 import { PlaylistController } from '@/saavn/modules/playlists/controllers'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60 // Maximum execution time for Vercel Pro (hobby: 10s)
 
 const app = new App([
   new SearchController(),
@@ -12,7 +13,23 @@ const app = new App([
   new PlaylistController()
 ]).getApp()
 
-const handler = (req: Request) => app.fetch(req)
+const handler = async (req: Request) => {
+  try {
+    return await app.fetch(req)
+  } catch (error) {
+    console.error('API Error:', error)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'Internal server error'
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  }
+}
 
 export const GET = handler
 export const POST = handler

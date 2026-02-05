@@ -27,11 +27,33 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
 
   const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)]
 
-  const response = await fetch(url.toString(), {
-    headers: { 'Content-Type': 'application/json', 'User-Agent': randomUserAgent }
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 second timeout
 
-  const data = await response.json()
+  try {
+    const response = await fetch(url.toString(), {
+      headers: { 'Content-Type': 'application/json', 'User-Agent': randomUserAgent },
+      signal: controller.signal
+    })
 
-  return { data: data as T, ok: response.ok }
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      throw new Error(`JioSaavn API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    return { data: data as T, ok: response.ok }
+  } catch (error) {
+    clearTimeout(timeoutId)
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout: JioSaavn API is taking too long to respond')
+      }
+      throw error
+    }
+    throw new Error('Unknown error occurred while fetching data')
+  }
 }
