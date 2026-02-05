@@ -1,5 +1,6 @@
 import { userAgents, type Endpoints } from '#common/constants'
 import type { ApiContextEnum } from '#common/enums'
+import { getCached, setCached, getCacheKey } from './cache.helper'
 
 type EndpointValue = (typeof Endpoints)[keyof typeof Endpoints]
 
@@ -7,6 +8,8 @@ interface FetchParams {
   endpoint: EndpointValue
   params: Record<string, string | number>
   context?: ApiContextEnum
+  cache?: boolean
+  cacheTTL?: number
 }
 
 interface FetchResponse<T> {
@@ -14,7 +17,16 @@ interface FetchResponse<T> {
   ok: Response['ok']
 }
 
-export const useFetch = async <T>({ endpoint, params, context }: FetchParams): Promise<FetchResponse<T>> => {
+export const useFetch = async <T>({ endpoint, params, context, cache: useCache = true, cacheTTL = 3600 }: FetchParams): Promise<FetchResponse<T>> => {
+  // Check cache first
+  if (useCache) {
+    const cacheKey = getCacheKey(endpoint.toString(), params)
+    const cached = getCached<T>(cacheKey)
+    if (cached) {
+      return { data: cached, ok: true }
+    }
+  }
+
   const url = new URL('https://www.jiosaavn.com/api.php')
 
   url.searchParams.append('__call', endpoint.toString())
@@ -55,6 +67,12 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
 
       const data = await response.json()
 
+      // Cache successful response
+      if (useCache) {
+        const cacheKey = getCacheKey(endpoint.toString(), params)
+        setCached(cacheKey, data, cacheTTL)
+      }
+
       return { data: data as T, ok: response.ok }
     } catch (error) {
       clearTimeout(timeoutId)
@@ -76,3 +94,4 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
   }
   throw lastError || new Error('Failed to fetch data from JioSaavn')
 }
+
