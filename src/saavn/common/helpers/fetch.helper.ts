@@ -27,33 +27,52 @@ export const useFetch = async <T>({ endpoint, params, context }: FetchParams): P
 
   const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)]
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 second timeout
+  // Retry logic with exponential backoff
+  const maxRetries = 2
+  let lastError: Error | null = null
 
-  try {
-    const response = await fetch(url.toString(), {
-      headers: { 'Content-Type': 'application/json', 'User-Agent': randomUserAgent },
-      signal: controller.signal
-    })
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 55000) // 55 second timeout
 
-    clearTimeout(timeoutId)
+    try {
+      const response = await fetch(url.toString(), {
+        headers: { 
+          'Content-Type': 'application/json', 
+          'User-Agent': randomUserAgent,
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9'
+        },
+        signal: controller.signal,
+        cache: 'no-store'
+      })
 
-    if (!response.ok) {
-      throw new Error(`JioSaavn API error: ${response.status}`)
-    }
+      clearTimeout(timeoutId)
 
-    const data = await response.json()
-
-    return { data: data as T, ok: response.ok }
-  } catch (error) {
-    clearTimeout(timeoutId)
-    
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        throw new Error('Request timeout: JioSaavn API is taking too long to respond')
+      if (!response.ok) {
+        throw new Error(`JioSaavn API returned status ${response.status}`)
       }
-      throw error
+
+      const data = await response.json()
+
+      return { data: data as T, ok: response.ok }
+    } catch (error) {
+      clearTimeout(timeoutId)
+      lastError = error instanceof Error ? error : new Error('Unknown error')
+      
+      // Don't retry on timeout for the last attempt
+      if (attempt === maxRetries) {
+        break
+      }
+
+      // Wait before retry (exponential backoff: 1s, 2s)
+      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
     }
-    throw new Error('Unknown error occurred while fetching data')
   }
+
+  // All retries failed
+  if (lastError?.name === 'AbortError') {
+    throw new Error('JioSaavn API timeout - service may be slow or unavailable')
+  }
+  throw lastError || new Error('Failed to fetch data from JioSaavn')
 }
