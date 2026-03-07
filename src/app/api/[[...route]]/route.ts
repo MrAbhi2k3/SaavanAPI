@@ -1,5 +1,5 @@
 import { App } from '@/saavn/app'
-import { AlbumController, ArtistController, SearchController, SongController } from '@/saavn/modules'
+import { AlbumController, ArtistController, DiscoveryController, SearchController, SongController } from '@/saavn/modules'
 import { PlaylistController } from '@/saavn/modules/playlists/controllers'
 
 export const runtime = 'nodejs'
@@ -10,7 +10,8 @@ const app = new App([
   new SongController(),
   new AlbumController(),
   new ArtistController(),
-  new PlaylistController()
+  new PlaylistController(),
+  new DiscoveryController()
 ]).getApp()
 
 const handler = async (req: Request) => {

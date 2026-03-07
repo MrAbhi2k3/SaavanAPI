@@ -1,10 +1,25 @@
 export const Endpoints = {
+  home: {
+    launchData: 'webapi.getLaunchData',
+    topSearches: 'content.getTopSearches'
+  },
   search: {
     all: 'autocomplete.get',
     songs: 'search.getResults',
     albums: 'search.getAlbumResults',
     artists: 'search.getArtistResults',
     playlists: 'search.getPlaylistResults'
+  },
+  radio: {
+    featured: 'webradio.createFeaturedStation',
+    artist: 'webradio.createArtistStation',
+    entity: 'webradio.createEntityStation',
+    songs: 'webradio.getSong'
+  },
+  recommendations: {
+    songs: 'reco.getreco',
+    albums: 'reco.getAlbumReco',
+    artistOtherTopSongs: 'search.artistOtherTopSongs'
   },
   songs: {
     id: 'song.getDetails',
